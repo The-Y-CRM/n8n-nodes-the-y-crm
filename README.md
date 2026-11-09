@@ -6,15 +6,16 @@ The-Y CRM is a shared inbox for WhatsApp, email, web chat and phone with contact
 
 This package contains two nodes:
 
-- **The-Y CRM**: create, get, search and update contacts.
-- **The-Y CRM Trigger**: start a workflow when The-Y CRM sends an event, for example a new message, a new conversation, a new or changed contact, or a changed deal stage.
+- **The-Y CRM**: contacts (create, create or update, get, search, update), conversations (get, list, send a message, change status or assignee), deals (create, get, change stage), tasks and notes.
+- **The-Y CRM Trigger**: start a workflow when something happens in The-Y CRM, for example a new message, a new conversation, a new or changed contact, a changed deal stage or a new task. The trigger registers itself in The-Y CRM and checks the signature of every delivery.
 
 [n8n](https://n8n.io/) is a [fair-code licensed](https://docs.n8n.io/sustainable-use-license/) workflow automation platform.
 
 [Installation](#installation) ·
 [Credentials](#credentials) ·
+[Your own n8n with your own The-Y CRM](#your-own-n8n-with-your-own-the-y-crm) ·
 [Operations](#operations) ·
-[Trigger setup](#trigger-setup) ·
+[Trigger](#trigger) ·
 [Example workflows](#example-workflows) ·
 [Compatibility](#compatibility) ·
 [Limitations](#limitations) ·
@@ -25,189 +26,144 @@ This package contains two nodes:
 
 Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes/installation/) in the n8n community nodes documentation.
 
-In short: in n8n go to **Settings → Community Nodes → Install**, enter `n8n-nodes-the-y-crm` and confirm.
+- **Self-hosted n8n:** go to **Settings → Community Nodes → Install**, enter `n8n-nodes-the-y-crm` and confirm. You can use the node right away.
+- **n8n Cloud:** n8n Cloud only offers community nodes that n8n has verified. Until this package is verified, it is not available in n8n Cloud. Use a self-hosted n8n in the meantime.
 
 ## Credentials
 
 You need an API key from The-Y CRM.
 
 1. In The-Y CRM open **Settings → Integrations → API keys** and create a new key.
-2. Give the key the permissions **contacts:read** and **contacts:write**. Optionally set an expiry date.
+2. Give the key the permissions your workflows need (see the table below). Optionally set an expiry date.
 3. Copy the key. It starts with `tyk_` and is shown only once.
 4. In n8n create a new credential **The-Y CRM API**:
-   - **Base URL**: keep `https://crm.the-y.at` for the hosted cloud. If you host The-Y CRM yourself, enter your own address, for example `https://crm.example.com`.
+   - **Environment**: **The-Y Cloud (crm.the-y.at)** if you use the hosted cloud, or **Self-Hosted (Own URL)** if The-Y CRM runs on your own server.
+   - **Base URL** (only self-hosted): the address of your The-Y CRM, for example `https://crm.example.com`.
    - **API Key**: paste the key.
-5. Click **Save**. n8n tests the connection right away.
+5. Click **Save**. n8n tests the connection right away (this works with every valid key, whatever its permissions).
+
+| Permission                                   | Needed for                                                            |
+| -------------------------------------------- | --------------------------------------------------------------------- |
+| `contacts:read` / `contacts:write`           | Contact operations                                                    |
+| `conversations:read` / `conversations:write` | Get and list conversations / send messages, change status or assignee |
+| `deals:read` / `deals:write`                 | Get deals, list pipelines and stages / create and update deals        |
+| `tasks:write`                                | Create tasks                                                          |
+| `notes:write`                                | Create notes                                                          |
+| `users:read`                                 | Pick an assignee from a list                                          |
+| `webhooks:manage`                            | **Trigger** with automatic registration                               |
 
 The key is sent as `Authorization: Bearer <key>` to `<Base URL>/api/ext/v1`. Treat it like a password.
+
+Credentials created with version 0.1.0 keep working: they still use their saved base URL.
+
+## Your own n8n with your own The-Y CRM
+
+If both run on your own servers:
+
+- **n8n must reach The-Y CRM** at the base URL you enter in the credential (for all actions of the The-Y CRM node).
+- **For the trigger, The-Y CRM must reach n8n** at the webhook URL n8n shows in the trigger node. If n8n runs in your own network (for example `http://192.168.1.20:5678`), set `WEBHOOK_PRIVATE_TARGETS=on` in the `.env` of The-Y CRM. Without it, The-Y CRM only sends to public addresses (protection against requests into internal networks). Loopback addresses (`localhost`, `127.0.0.1`) are never allowed — use the address of the host or container.
+- If n8n sits behind a reverse proxy, set `WEBHOOK_URL` in n8n to the address The-Y CRM should call.
 
 ## Operations
 
 ### Contact
 
-| Operation | What it does |
-|---|---|
-| **Create** | Creates a contact with email, first name, last name, phone and custom fields. |
-| **Get** | Returns one contact, including its custom fields. Pick the contact from a list, paste its URL from The-Y CRM, or enter its ID. |
-| **Get Many** | Returns contacts, newest first. Optional search over name, email, phone and company. Supports **Return All**. |
-| **Update** | Changes only the fields you add. Email and phone replace the contact's first address or number, the others stay. |
+| Operation            | What it does                                                                                                                                  |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Create**           | Creates a contact with email, first name, last name, phone and custom fields.                                                                 |
+| **Create or Update** | Updates the contact with this email address, or creates it if there is none. No duplicates, even if the workflow runs twice at the same time. |
+| **Get**              | Returns one contact, including its custom fields. Pick the contact from a list, paste its URL from The-Y CRM, or enter its ID.                |
+| **Get Many**         | Returns contacts, newest first. Optional search over name, email, phone and company. Supports **Return All**.                                 |
+| **Update**           | Changes only the fields you add. Email and phone replace the contact's first address or number, the others stay.                              |
 
-**Custom fields:** use the field key, for example `customer_number`. You find the keys in The-Y CRM under **Settings → Custom fields**. Unknown keys are ignored by The-Y CRM.
+**Custom fields:** use the field key, for example `customer_number`. The API lists the keys under `GET /custom-fields?entity=contact`; in The-Y CRM you find them under **Settings → Custom fields**. Unknown keys are not saved; the response then contains a `warnings` entry.
+
+### Conversation
+
+| Operation        | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Get**          | One conversation with its latest messages (customer messages `direction: in`, replies `out`, internal notes `internal: true`).                                                                                                                                                                                                                                                                                                                                               |
+| **Get Many**     | Conversations, newest activity first. Filters: status, channel, since, contact. Supports **Return All**.                                                                                                                                                                                                                                                                                                                                                                     |
+| **Send Message** | Replies on the conversation's own channel and account: email (with signature, subject `Re:` and quote), WhatsApp, SMS, Messenger, Instagram or web chat. On WhatsApp outside the 24-hour window only an approved template works (**Use WhatsApp Template**). The-Y CRM applies the same rules as its automatic replies: a contact who opted out of a channel gets nothing, marketing templates need explicit consent. The message appears in the inbox as "API: <key name>". |
+| **Update**       | Status (open, closed, snoozed until a date) and assignee. Closing works like in the inbox (satisfaction survey if switched on).                                                                                                                                                                                                                                                                                                                                              |
+
+### Deal
+
+| Operation  | What it does                                                                                                                                                     |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Create** | Title, value, currency, stage, contact, company, expected close date, custom fields. Without a stage the deal starts in the first stage of the default pipeline. |
+| **Get**    | One deal with pipeline, stage and custom fields.                                                                                                                 |
+| **Update** | Change the stage (the pipeline follows the stage; won or lost follow from the stage) or other fields.                                                            |
+
+Pick the stage from the list (needs `deals:read`).
+
+### Task and Note
+
+- **Task → Create**: title, description, due date, priority, type (to-do, callback, call, email, follow-up), assignee, linked contact, company, deal or conversation. The task belongs to the person who created the API key.
+- **Note → Create**: a note in the timeline of a contact, company or deal, or an internal note in a conversation (never sent to the customer).
 
 The node can also be used as a tool by AI agents in n8n.
 
-## Trigger setup
+## Trigger
 
-The-Y CRM cannot register webhooks automatically yet. You copy the webhook URL of the trigger node into The-Y CRM once. There are two ways, depending on the event.
+### Automatic registration (recommended)
 
-First, add the **The-Y CRM Trigger** node to a workflow, choose the events under **Trigger On** and copy the **Production URL** from the top of the node. (For a quick test you can use the Test URL and click **Listen for test event**.)
+1. Add **The-Y CRM Trigger**, choose the credential (the key needs `webhooks:manage`) and the events under **Trigger On**.
+2. Activate the workflow. The node registers its webhook in The-Y CRM (you see it under **Settings → Integrations → Send data (webhook)** as "n8n: <workflow name>") and keeps the signing secret. Every delivery is checked; deliveries without a valid signature or older than 5 minutes are rejected with HTTP 401.
+3. Deactivating the workflow removes the webhook in The-Y CRM again.
 
-### Contact events (signed)
+**Manual registration** (for flow webhooks or keys without `webhooks:manage`): set **Registration** to **Manual**, copy the webhook URL into The-Y CRM and put the secret The-Y CRM shows once into **Options → Signing Secret**.
 
-Events: **Contact Created**, **Contact Updated**.
+### Events
 
-1. In The-Y CRM open **Settings → Integrations → Send data (webhook) → + Webhook**.
-2. Paste the Production URL and select `contact.created` and/or `contact.updated`.
-3. The-Y CRM shows a signing secret (`whsec_…`) once. Copy it into the trigger node under **Options → Signing Secret**.
+| Event                                                            | When                                                                                                                                                                                                                              |
+| ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `contact.created`                                                | A contact is created — by hand, via the API, from WhatsApp, email, SMS, calls, web chat, bookings or appointments, and from imports with the box "Run automations … and webhooks" ticked. `data.source` tells where it came from. |
+| `contact.updated`                                                | A contact is changed in the form, the inbox or via the API. `data.changed` lists the changed fields.                                                                                                                              |
+| `message.received`                                               | A customer writes. `data.text`, `data.channel`, `data.conversation_id`, `data.contact_id`, `data.from`.                                                                                                                           |
+| `conversation.created`                                           | A customer starts a new conversation, or the team starts one. `data.started_by`: `customer` or `team`.                                                                                                                            |
+| `conversation.closed` / `conversation.assigned`                  | Status closed / new assignee (`data.assignee`).                                                                                                                                                                                   |
+| `deal.created` / `deal.stage_changed` / `deal.won` / `deal.lost` | Deals, with `from_stage` / `to_stage` on stage changes.                                                                                                                                                                           |
+| `task.created`                                                   | A task is created.                                                                                                                                                                                                                |
 
-With a signing secret, the node checks the `X-TheY-Signature` header (HMAC-SHA256 over timestamp and body) and rejects deliveries that are unsigned, changed or older than 5 minutes.
+Every delivery is a JSON object `{ id, event, tenant, at, data }`. `id` (also in the header `X-TheY-Event-Id`) stays the same on retries — use it to remove duplicates. `data.origin` says who caused the event: `customer`, `user`, `system`, `automation` or `api`. With **Options → Ignore Changes Made via the API** the trigger skips events with origin `api` (useful to avoid loops when the same workflow writes back to The-Y CRM).
 
-Example output:
-
-```json
-{
-  "event": "contact.created",
-  "tenant": "f7139d51-…",
-  "at": "2026-11-09T20:34:05.423Z",
-  "data": {
-    "id": "49dae377-…",
-    "name": "Maria Muster",
-    "emails": [{ "type": "work", "value": "maria@example.com" }],
-    "phones": [{ "type": "mobile", "value": "+4366012345678" }]
-  },
-  "deliveryId": "0ec3909d-…"
-}
-```
-
-`contact.updated` contains `id` and `name`. Use the **The-Y CRM → Contact → Get** operation for all fields.
-
-### All other events (flows)
-
-Events: **Message Received**, **Conversation Started**, **Conversation Assigned**, **Conversation Closed**, **Deal Created**, **Deal Stage Changed**, **Deal Won**, **Deal Lost**.
-
-For each event, create a flow in The-Y CRM:
-
-1. Open **Flows → New flow** and choose the trigger from the table below.
-2. Add the action **Send data (webhook)**.
-3. **Address (URL)**: paste the Production URL of the trigger node.
-4. **Custom content (JSON, optional)**: paste the JSON body from the table below.
-5. Save and switch the flow on.
-
-Flow webhooks are not signed. Leave **Signing Secret** empty in a trigger node that receives flow events. If you also want contact events with signature checks, use a second trigger node.
-
-| Event in n8n | Flow trigger in The-Y CRM | JSON body |
-|---|---|---|
-| Message Received | Customer writes (every message) | [Conversation body](#conversation-body) with `"event": "message.received"` |
-| Conversation Started | Customer writes, tick **Only for the first message of a conversation** | [Conversation body](#conversation-body) with `"event": "conversation.started"` |
-| Conversation Assigned | Conversation assigned | [Conversation body](#conversation-body) with `"event": "conversation.assigned"` |
-| Conversation Closed | Conversation closed | [Conversation body](#conversation-body) with `"event": "conversation.closed"` |
-| Deal Created | Deal created | [Deal body](#deal-body) with `"event": "deal.created"` |
-| Deal Stage Changed | Deal stage changed | [Deal body](#deal-body) with `"event": "deal.stage_changed"` |
-| Deal Won | Deal won | [Deal body](#deal-body) with `"event": "deal.won"` |
-| Deal Lost | Deal lost | [Deal body](#deal-body) with `"event": "deal.lost"` |
-
-#### Conversation body
-
-```json
-{
-  "event": "message.received",
-  "conversation_id": "{{conversation.id}}",
-  "channel": "{{conversation.channel}}",
-  "status": "{{conversation.status}}",
-  "assignee_id": "{{conversation.assignee_id}}",
-  "first_message": "{{message.first}}",
-  "text": "{{message.body}}",
-  "contact_id": "{{contact.id}}",
-  "contact_name": "{{contact.name}}",
-  "contact_email": "{{contact.email}}",
-  "contact_phone": "{{contact.phone}}"
-}
-```
-
-#### Deal body
-
-```json
-{
-  "event": "deal.stage_changed",
-  "deal_id": "{{deal.id}}",
-  "title": "{{deal.title}}",
-  "value": "{{deal.value}}",
-  "status": "{{deal.status}}",
-  "stage": "{{deal.stage_name}}",
-  "pipeline": "{{deal.pipeline_name}}",
-  "contact_id": "{{contact.id}}",
-  "contact_name": "{{contact.name}}"
-}
-```
-
-You can add or remove fields. Keep the `event` field, because the node uses it for **Trigger On**. All values arrive as text.
-
-Example output for a new web chat message:
-
-```json
-{
-  "tenant": "f7139d51-…",
-  "at": "2026-11-09T20:34:07.371Z",
-  "data": {
-    "event": "message.received",
-    "conversation_id": "a91826e1-…",
-    "channel": "webchat",
-    "first_message": "true",
-    "text": "Hello, do you have time on Friday?",
-    "contact_id": "827ad37a-…",
-    "contact_name": "Web visitor",
-    "contact_email": "",
-    "contact_phone": ""
-  },
-  "event": "message.received"
-}
-```
+The test delivery `webhook.ping` (sent when you click "Send again" in The-Y CRM, and every few hours to a paused webhook) is answered by the node and never starts the workflow.
 
 ### Good to know
 
-- Deliveries for events that are not selected under **Trigger On** are answered with HTTP 200 and ignored.
-- The-Y CRM waits up to 8 seconds for an answer and retries on errors or timeouts. Retries of signed webhooks keep the same `deliveryId`, so you can remove duplicates.
-- After 50 failed deliveries in a row, The-Y CRM pauses a signed webhook. To resume, delete it under **Settings → Integrations** and create it again with a new signing secret.
-- If you host The-Y CRM yourself and n8n runs in your own network, set `WEBHOOK_PRIVATE_TARGETS=on` in The-Y CRM. Otherwise The-Y CRM only sends to public addresses.
+- The-Y CRM waits up to 8 seconds for an answer, retries on errors or timeouts and sends at most 4 deliveries at the same time per webhook.
+- After 50 failed deliveries in a row, The-Y CRM pauses the webhook, tells the admins and tries again every 6 hours. **Send again** under **Settings → Integrations** resumes it at once. Events that happen while a webhook is paused are not sent later.
+- Message texts, names and phone numbers or email addresses go to your n8n. Only subscribe to the events you need.
 
 ## Example workflows
 
-**New web chat message → task in another tool**
+**Customer writes → AI reply**
 
-1. **The-Y CRM Trigger**, Trigger On: Message Received (flow "Customer writes" as described above).
-2. **The-Y CRM → Contact → Get**, Contact: By ID, `{{ $json.data.contact_id }}`.
-3. Any node of your choice, for example a ticket or chat tool, with the message text `{{ $('The-Y CRM Trigger').item.json.data.text }}`.
+1. **The-Y CRM Trigger**, Trigger On: Message Received, Options → Ignore Changes Made via the API.
+2. An AI node of your choice with `{{ $json.data.text }}`.
+3. **The-Y CRM → Conversation → Send Message**, Conversation: By ID `{{ $('The-Y CRM Trigger').item.json.data.conversation_id }}`, Text: the AI answer.
 
-**Form submission → contact in The-Y CRM**
+**Form submission → contact + task**
 
-1. **n8n Form Trigger** (or any other source) with email, first name and last name.
-2. **The-Y CRM → Contact → Get Many**, Filters → Search: the email address, Limit 1.
-3. **If** no contact was found: **The-Y CRM → Contact → Create**. Otherwise: **The-Y CRM → Contact → Update**.
+1. **n8n Form Trigger** with email, first name and last name.
+2. **The-Y CRM → Contact → Create or Update** with the form values.
+3. **The-Y CRM → Task → Create**, Title "Call back", Contact ID `{{ $json.id }}`, Type Callback.
 
-**New contact → newsletter tool**
+**Deal won → invoice tool**
 
-1. **The-Y CRM Trigger**, Trigger On: Contact Created, with Signing Secret.
-2. **The-Y CRM → Contact → Get**, Contact: By ID, `{{ $json.data.id }}`.
-3. Your newsletter tool. Only add people who agreed to receive it.
+1. **The-Y CRM Trigger**, Trigger On: Deal Won.
+2. Your invoice tool with `{{ $json.data.title }}` and `{{ $json.data.value }}` `{{ $json.data.currency }}`.
 
 ## Compatibility
 
-- Tested with n8n 2.46.7 and The-Y CRM 1.1.61 (self-hosted and cloud use the same API).
-- Requires a The-Y CRM API key (available on all plans, with a rate limit of 300 requests per minute).
+- Tested with n8n 2.4.6 and The-Y CRM 1.1.62 (self-hosted; the cloud uses the same API).
+- Requires a The-Y CRM API key (all plans). Limits per account: Free 60 requests per minute and 1,000 per day; Cloud Pro and paid licenses 300 per minute; self-hosted no limit per account. Above a limit The-Y CRM answers HTTP 429 with `Retry-After`.
 
 ## Limitations
 
-The public API of The-Y CRM currently covers contacts. Conversations, messages, deals, tasks and notes are not available through the API yet, so this node cannot send messages or create deals, tasks or notes. You can still react to these events with the trigger and flows. More operations will follow when the API grows.
+- Sending files (attachments) and starting new conversations are not available through the API yet.
+- Conversations that The-Y CRM itself starts with a message (phone system, flows) do not send `conversation.created`.
 
 ## Resources
 

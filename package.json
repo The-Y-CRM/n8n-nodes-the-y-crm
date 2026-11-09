@@ -1,7 +1,7 @@
 {
 	"name": "n8n-nodes-the-y-crm",
-	"version": "0.1.0",
-	"description": "n8n community node for The-Y CRM: create, get, search and update contacts, and start workflows from The-Y CRM webhooks.",
+	"version": "0.2.0",
+	"description": "n8n community node for The-Y CRM: contacts, conversations and messages, deals, tasks and notes, plus a trigger that registers its signed webhook automatically.",
 	"license": "MIT",
 	"homepage": "https://github.com/theyat/n8n-nodes-the-y-crm#readme",
 	"keywords": [

@@ -6,6 +6,16 @@ import type {
 	INodeProperties,
 } from 'n8n-workflow';
 
+/** Address of the hosted The-Y CRM cloud. */
+export const THE_Y_CLOUD_URL = 'https://crm.the-y.at';
+
+/**
+ * Base URL expression shared by the credential test and the nodes.
+ * Credentials from version 0.1.0 have no `environment` yet: they keep using their saved base URL.
+ */
+export const BASE_URL_EXPRESSION =
+	'={{ ($credentials.environment === "cloud" || !$credentials.baseUrl) ? "https://crm.the-y.at" : String($credentials.baseUrl).replace(/\\/+$/, "") }}/api/ext/v1';
+
 export class TheYCrmApi implements ICredentialType {
 	name = 'theYCrmApi';
 
@@ -17,13 +27,36 @@ export class TheYCrmApi implements ICredentialType {
 
 	properties: INodeProperties[] = [
 		{
+			displayName: 'Environment',
+			name: 'environment',
+			type: 'options',
+			default: 'cloud',
+			options: [
+				{
+					name: 'The-Y Cloud (crm.the-y.at)',
+					value: 'cloud',
+				},
+				{
+					name: 'Self-Hosted (Own URL)',
+					value: 'selfHosted',
+				},
+			],
+			description:
+				'Where your The-Y CRM runs. Choose Self-Hosted if you run The-Y CRM on your own server.',
+		},
+		{
 			displayName: 'Base URL',
 			name: 'baseUrl',
 			type: 'string',
-			default: 'https://crm.the-y.at',
-			placeholder: 'https://crm.the-y.at',
+			default: '',
+			placeholder: 'https://crm.example.com',
 			description:
-				'Address of your The-Y CRM. Keep the default for the hosted cloud. If you host The-Y CRM yourself, enter your own address, for example https://crm.example.com.',
+				'Address of your own The-Y CRM, for example https://crm.example.com. n8n must be able to reach this address.',
+			displayOptions: {
+				show: {
+					environment: ['selfHosted'],
+				},
+			},
 			required: true,
 		},
 		{
@@ -33,7 +66,7 @@ export class TheYCrmApi implements ICredentialType {
 			typeOptions: { password: true },
 			default: '',
 			description:
-				'Create a key in The-Y CRM under Settings → Integrations → API keys. Give it the permissions contacts:read and contacts:write. The key starts with "tyk_".',
+				'Create a key in The-Y CRM under Settings → Integrations → API keys and give it the permissions you need (for example contacts:read, conversations:write, webhooks:manage for the trigger). The key starts with "tyk_".',
 			required: true,
 		},
 	];
@@ -49,12 +82,9 @@ export class TheYCrmApi implements ICredentialType {
 
 	test: ICredentialTestRequest = {
 		request: {
-			baseURL: '={{$credentials.baseUrl.replace(/\\/+$/, "")}}/api/ext/v1',
-			url: '/contacts',
+			baseURL: BASE_URL_EXPRESSION,
+			url: '/me',
 			method: 'GET',
-			qs: {
-				limit: 1,
-			},
 		},
 	};
 }

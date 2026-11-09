@@ -41,6 +41,18 @@ export const contactDescription: INodeProperties[] = [
 				},
 			},
 			{
+				name: 'Create or Update',
+				value: 'upsert',
+				action: 'Create or update a contact',
+				description: 'Create a new record, or update the current one if it already exists (upsert)',
+				routing: {
+					request: {
+						method: 'POST',
+						url: '/contacts/upsert',
+					},
+				},
+			},
+			{
 				name: 'Get',
 				value: 'get',
 				action: 'Get a contact',

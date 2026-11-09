@@ -2,7 +2,7 @@ import type { INodeProperties } from 'n8n-workflow';
 import { customFieldsCollection } from '../../shared/descriptions';
 
 const showOnlyForContactCreate = {
-	operation: ['create'],
+	operation: ['create', 'upsert'],
 	resource: ['contact'],
 };
 
@@ -16,7 +16,8 @@ export const contactCreateDescription: INodeProperties[] = [
 		displayOptions: {
 			show: showOnlyForContactCreate,
 		},
-		description: 'Email address of the contact. Enter at least a name or an email address.',
+		description:
+			'Email address of the contact. Create: enter at least a name or an email address. Create or Update: required, an existing contact with this address is updated.',
 		routing: {
 			send: {
 				type: 'body',
