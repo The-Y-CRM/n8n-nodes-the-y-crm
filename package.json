@@ -3,7 +3,7 @@
 	"version": "0.2.0",
 	"description": "n8n community node for The-Y CRM: contacts, conversations and messages, deals, tasks and notes, plus a trigger that registers its signed webhook automatically.",
 	"license": "MIT",
-	"homepage": "https://github.com/theyat/n8n-nodes-the-y-crm#readme",
+	"homepage": "https://github.com/The-Y-CRM/n8n-nodes-the-y-crm#readme",
 	"keywords": [
 		"n8n-community-node-package",
 		"n8n",
@@ -19,10 +19,10 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/theyat/n8n-nodes-the-y-crm.git"
+		"url": "https://github.com/The-Y-CRM/n8n-nodes-the-y-crm.git"
 	},
 	"bugs": {
-		"url": "https://github.com/theyat/n8n-nodes-the-y-crm/issues"
+		"url": "https://github.com/The-Y-CRM/n8n-nodes-the-y-crm/issues"
 	},
 	"scripts": {
 		"build": "n8n-node build",

@@ -170,7 +170,7 @@ The test delivery `webhook.ping` (sent when you click "Send again" in The-Y CRM,
 - [n8n community nodes documentation](https://docs.n8n.io/integrations/#community-nodes)
 - [The-Y CRM REST API](https://the-y.at/en/docs/api/)
 - [The-Y CRM](https://the-y.at/en/crm/)
-- Questions and bugs: [GitHub issues](https://github.com/theyat/n8n-nodes-the-y-crm/issues) or office@the-y.at
+- Questions and bugs: [GitHub issues](https://github.com/The-Y-CRM/n8n-nodes-the-y-crm/issues) or office@the-y.at
 
 ## License
 
