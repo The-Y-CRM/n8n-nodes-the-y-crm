@@ -1,5 +1,7 @@
 # n8n-nodes-the-y-crm
 
+[![npm](https://img.shields.io/npm/v/n8n-nodes-the-y-crm)](https://www.npmjs.com/package/n8n-nodes-the-y-crm)
+
 This is an n8n community node. It lets you use [The-Y CRM](https://the-y.at/en/crm/) in your n8n workflows.
 
 The-Y CRM is a shared inbox for WhatsApp, email, web chat and phone with contacts, deals and flows. It runs in the hosted cloud (crm.the-y.at) or on your own server.

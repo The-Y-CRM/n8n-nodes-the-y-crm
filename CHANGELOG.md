@@ -2,6 +2,15 @@
 
 All notable changes to this package are documented in this file.
 
+## 0.2.1
+
+No code changes.
+
+### Changed
+
+- Releases are now published from GitHub Actions via npm trusted publishing (OpenID Connect) with provenance. No access token is stored in the repository.
+- README: npm version badge.
+
 ## 0.2.0
 
 Needs The-Y CRM 1.1.62 or newer (new API).
